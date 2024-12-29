@@ -1,0 +1,28 @@
+{
+  "engines": {
+    "node": ">=20.6.0"
+  },
+  "name": "express-server-sent-event",
+  "version": "0.1.0",
+  "description": "Express API using SSE (Server-Sent Events)",
+  "main": "server.ts",
+  "scripts": {
+    "dev": "node --watch --watch-preserve-output -r ts-node/register src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
+  "keywords": [],
+  "author": "Emiliano Sasal",
+  "license": "MIT",
+  "dependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.2",
+    "express": "^4.21.2",
+    "morgan": "^1.10.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  },
+  "devDependencies": {
+    "@types/morgan": "^1.9.9"
+  }
+}
