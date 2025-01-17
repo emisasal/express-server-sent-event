@@ -16,12 +16,12 @@
   "license": "MIT",
   "dependencies": {
     "@types/express": "^5.0.0",
-    "@types/node": "^22.10.2",
+    "@types/node": "^22.10.7",
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "morgan": "^1.10.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
