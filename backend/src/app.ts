@@ -1,5 +1,4 @@
 import express from "express"
-import morgan from "morgan"
 import { log } from "./logger.js"
 
 export const MAX_CLIENTS = 32
@@ -26,14 +25,6 @@ export function createApp() {
   let activeClients = 0
   let nextEventId = 1
   const recentPulses: Pulse[] = []
-
-  if (process.env.NODE_ENV !== "test") {
-    app.use(
-      morgan("dev", {
-        skip: (req) => req.path === "/events",
-      }),
-    )
-  }
 
   function remember(pulse: Pulse) {
     recentPulses.push(pulse)

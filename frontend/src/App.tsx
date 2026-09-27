@@ -42,7 +42,13 @@ function App() {
   const [events, setEvents] = useState<StreamEvent[]>([])
   const [received, setReceived] = useState(0)
   const [session, setSession] = useState(0)
+  const [paused, setPaused] = useState(false)
   const seenIds = useRef(new Set<string>())
+  const pausedRef = useRef(false)
+
+  useEffect(() => {
+    pausedRef.current = paused
+  }, [paused])
 
   const reconnect = useCallback(() => {
     setStatus("connecting")
@@ -63,7 +69,7 @@ function App() {
       }
 
       const id = event.lastEventId || crypto.randomUUID()
-      if (seenIds.current.has(id)) {
+      if (seenIds.current.has(id) || pausedRef.current) {
         return
       }
       seenIds.current.add(id)
@@ -108,6 +114,10 @@ function App() {
 
   const copy = STATUS_COPY[status]
   const showReconnect = status === "error"
+  const latest = events[0]
+  const announcement = latest
+    ? `Pulse ${latest.id.padStart(3, "0")} at ${latest.timestamp}`
+    : ""
 
   return (
     <div className="relative isolate min-h-dvh overflow-hidden bg-ink text-fog">
@@ -182,15 +192,36 @@ function App() {
 
         <p className="mt-6 text-sm text-white/50">{copy.detail}</p>
 
-        {showReconnect ? (
+        <p className="sr-only" aria-live="polite" aria-atomic="true">
+          {announcement}
+        </p>
+
+        <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={reconnect}
-            className="mt-4 w-fit rounded-full bg-fog px-4 py-2 text-sm font-semibold text-ink transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+            onClick={() => setPaused((value) => !value)}
+            className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-fog transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
           >
-            Reconnect stream
+            {paused ? "Resume feed" : "Pause feed"}
           </button>
-        ) : null}
+          <button
+            type="button"
+            onClick={() => setEvents([])}
+            disabled={events.length === 0}
+            className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-fog transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Clear feed
+          </button>
+          {showReconnect ? (
+            <button
+              type="button"
+              onClick={reconnect}
+              className="rounded-full bg-fog px-4 py-2 text-sm font-semibold text-ink transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+            >
+              Reconnect stream
+            </button>
+          ) : null}
+        </div>
 
         <section
           aria-label="Live event feed"

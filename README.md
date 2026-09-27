@@ -1,44 +1,63 @@
 # Express Server-Sent Events
 
-Express API using SSE (Server-Sent Events) on the backend, and React with Vite on the frontend.
+Example of Server-Sent Events: an Express API pushes timestamp pulses, and a React console renders them live.
 
-## SSE Definition
+- [SSE on MDN](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events)
+- [SSE on Wikipedia](https://en.wikipedia.org/wiki/Server-sent_events)
 
-https://en.wikipedia.org/wiki/Server-sent_events
+## What it does
 
-https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events
+The backend opens `GET /events` as an SSE stream. Each pulse is a JSON payload `{ "timestamp": "<ISO-8601>" }` with an event `id`. The first pulse is sent immediately; later pulses wait a new random **1–10 seconds**. Heartbeat comments keep idle connections alive. Reconnects send `Last-Event-ID` so missed pulses can replay from a short in-memory buffer.
 
-## Description
+The frontend is a Vite + React + Tailwind console. It connects to `/events` on the same origin (proxied to the API in development), shows connection status, and lists pulses as they arrive.
 
-This project was created as SSE implementation example both in backend and frontend.
-The backend sends json events randomly every 1/10 seconds with the actual date.
-The frontend recieve the events and presents the values in a list of cards updated in real time.
+## Setup
 
-## Objectives
+Requires Node.js 20.6+ and [pnpm 12.7.0](https://pnpm.io/) (via Corepack).
 
-- Create an API using Express.js with TypeScript to send SSE in random intervals using an http endpoint.
-- Receive and display the events in real time in the frontend and show the connection status.
+```bash
+git clone https://github.com/emisasal/express-server-sent-event
+cd express-server-sent-event
+pnpm install
+pnpm dev
+```
 
-## Installation
+- UI: [http://localhost:5173](http://localhost:5173)
+- API: [http://localhost:8080](http://localhost:8080) (`PORT` overrides this). Vite proxies `/events` and `/health` to that port.
 
-To set up the project, follow these steps:
+Run the apps separately with `pnpm dev:backend` and `pnpm dev:frontend`.
 
-Clone the repository: git clone https://github.com/emisasal/express-server-sent-event
-Navigate to the project directory: `cd express-server-sent-event`
-Install dependencies from the repo root with `pnpm install` (pnpm 12.7.0 via Corepack).
-Start both apps with `pnpm dev`, or separately with `pnpm dev:backend` and `pnpm dev:frontend`.
-The backend port is `PORT` (default 8080) and exposes `GET /health` plus `GET /events`.
+## API
 
-## Technologies
+`GET /health` — `{ "ok": true, "activeClients": <number> }`
 
-- TypeScript
+`GET /events` — `text/event-stream`. Example:
 
-Backend:
+```bash
+curl -N http://localhost:8080/events
+```
 
-- Node.js
-- Express.js
-  SSE (Server-Sent Events)
+```
+retry: 3000
 
-Frontend:
+id: 1
+data: {"timestamp":"2026-09-27T10:51:41.847Z"}
+```
 
-- React (Vite)
+Comments look like `: ping <epoch-ms>`. At most 32 concurrent stream clients; extras receive `503`.
+
+## Scripts
+
+| Command | What it runs |
+| --- | --- |
+| `pnpm dev` | Backend watch server and Vite together |
+| `pnpm test` | Backend `node:test` and frontend Vitest |
+| `pnpm build` | `tsc` / Vite production builds |
+| `pnpm --filter frontend lint` | ESLint |
+
+## Stack
+
+pnpm workspace (`backend`, `frontend`). TypeScript throughout.
+
+- Backend: Node.js, Express 5, SSE
+- Frontend: React 19, Vite 8, Tailwind CSS 4

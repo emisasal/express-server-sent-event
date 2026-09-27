@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import App from "./App"
 
@@ -65,5 +65,36 @@ describe("App feed", () => {
 
     expect(screen.getByText("Waiting for the first pulse")).toBeInTheDocument()
     expect(screen.getByText("0")).toBeInTheDocument()
+  })
+
+  it("pauses the feed and can clear cards", async () => {
+    render(<App />)
+    await screen.findByRole("status", { name: /live/i })
+
+    fireEvent.click(screen.getByRole("button", { name: "Pause feed" }))
+
+    act(() => {
+      FakeEventSource.instances[0]?.onmessage?.({
+        data: '{"timestamp":"2026-09-27T10:00:00.000Z"}',
+        lastEventId: "3",
+      } as MessageEvent)
+    })
+
+    expect(screen.getByText("Waiting for the first pulse")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "Resume feed" }))
+
+    act(() => {
+      FakeEventSource.instances[0]?.onmessage?.({
+        data: '{"timestamp":"2026-09-27T11:00:00.000Z"}',
+        lastEventId: "4",
+      } as MessageEvent)
+    })
+
+    expect(await screen.findByText("Pulse 004")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear feed" }))
+    expect(screen.getByText("Waiting for the first pulse")).toBeInTheDocument()
+    expect(screen.getByText("1")).toBeInTheDocument()
   })
 })
