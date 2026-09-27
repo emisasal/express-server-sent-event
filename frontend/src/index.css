@@ -1,37 +1,46 @@
-:root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  font-weight: 400;
+@import "tailwindcss";
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-  
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@theme {
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --color-ink: #081018;
+  --color-fog: #d7ece6;
+  --color-signal: #3ee0c5;
+  --color-ember: #ff8a5b;
+  --animate-rise: rise 0.45s ease-out;
 }
 
-*,
-*::before,
-*::after {
-    box-sizing: border-box;
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+html {
+  color-scheme: dark;
 }
 
 body {
   margin: 0;
-  place-items: center;
   min-width: 320px;
-  max-height: 100vh;
+  background: var(--color-ink);
+  color: var(--color-fog);
+  font-family: var(--font-sans);
 }
 
-h1 {
-  font-size: 3em;
-  line-height: 1.2;
-  margin: 0;
-}
-
-p {
-  margin: 0;
-  line-height: 1.4;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
