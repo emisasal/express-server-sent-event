@@ -2,24 +2,36 @@ import express from "express"
 import { log } from "./logger.js"
 
 export const MAX_CLIENTS = 32
+export const HEARTBEAT_MS = 15_000
 const BUFFER_SIZE = 100
-const HEARTBEAT_MS = 15_000
 const RETRY_MS = 3_000
 const MIN_DELAY_MS = 1_000
 const MAX_DELAY_MS = 10_000
+
+export type AppOptions = {
+  maxClients?: number
+  heartbeatMs?: number
+  minDelayMs?: number
+  maxDelayMs?: number
+}
 
 type Pulse = {
   id: number
   timestamp: string
 }
 
-function randomDelayMs() {
-  return (
-    Math.floor(Math.random() * (MAX_DELAY_MS - MIN_DELAY_MS + 1)) + MIN_DELAY_MS
-  )
-}
+export function createApp(options: AppOptions = {}) {
+  const maxClients = options.maxClients ?? MAX_CLIENTS
+  const heartbeatMs = options.heartbeatMs ?? HEARTBEAT_MS
+  const minDelayMs = options.minDelayMs ?? MIN_DELAY_MS
+  const maxDelayMs = options.maxDelayMs ?? MAX_DELAY_MS
 
-export function createApp() {
+  function randomDelayMs() {
+    return (
+      Math.floor(Math.random() * (maxDelayMs - minDelayMs + 1)) + minDelayMs
+    )
+  }
+
   const app = express()
   let nextClientId = 1
   let activeClients = 0
@@ -61,11 +73,11 @@ export function createApp() {
   })
 
   app.get("/events", (req, res) => {
-    if (!accepting || activeClients >= MAX_CLIENTS) {
+    if (!accepting || activeClients >= maxClients) {
       log.warn("sse", "client rejected", {
         remote: req.socket.remoteAddress ?? "unknown",
         active: activeClients,
-        max: MAX_CLIENTS,
+        max: maxClients,
         shuttingDown: !accepting,
       })
       res.setHeader("Retry-After", "10")
@@ -145,7 +157,7 @@ export function createApp() {
         return
       }
       res.write(`: ping ${Date.now()}\n\n`)
-    }, HEARTBEAT_MS)
+    }, heartbeatMs)
 
     const finish = (reason: string) => {
       if (closed) {
