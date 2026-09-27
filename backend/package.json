@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "tsx watch --clear-screen=false src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "test": "NODE_ENV=test tsx --test src/app.test.ts"
   },
   "keywords": [],
   "author": "Emiliano Sasal",

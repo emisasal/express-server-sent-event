@@ -1,5 +1,6 @@
 import { startTransition, useCallback, useEffect, useRef, useState } from "react"
 import EventCard from "./EventCard"
+import { parsePulse } from "./parsePulse"
 
 type ConnectionStatus = "connecting" | "connected" | "reconnecting" | "error"
 type StreamEvent = {
@@ -56,18 +57,8 @@ function App() {
     }
 
     eventSource.onmessage = (event) => {
-      let timestamp: string
-      try {
-        const parsed: unknown = JSON.parse(event.data)
-        if (
-          typeof parsed !== "object" ||
-          parsed === null ||
-          typeof (parsed as { timestamp?: unknown }).timestamp !== "string"
-        ) {
-          return
-        }
-        timestamp = (parsed as { timestamp: string }).timestamp
-      } catch {
+      const parsed = parsePulse(event.data)
+      if (!parsed) {
         return
       }
 
@@ -80,7 +71,10 @@ function App() {
       startTransition(() => {
         setReceived((count) => count + 1)
         setEvents((previous) =>
-          [{ id, timestamp }, ...previous].slice(0, VISIBLE_EVENTS),
+          [{ id, timestamp: parsed.timestamp }, ...previous].slice(
+            0,
+            VISIBLE_EVENTS,
+          ),
         )
       })
     }
@@ -149,6 +143,7 @@ function App() {
             className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-md"
             role="status"
             aria-live="polite"
+            aria-label={copy.label}
           >
             <span className="relative flex h-2.5 w-2.5">
               {status === "connected" ? (

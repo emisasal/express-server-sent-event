@@ -6,7 +6,10 @@
     "node": ">=20.6.0"
   },
   "scripts": {
-    "dev:backend": "pnpm --filter express-server-sent-event dev",
-    "dev:frontend": "pnpm --filter frontend dev"
+    "dev": "\"$npm_execpath\" --parallel --filter express-server-sent-event --filter frontend dev",
+    "dev:backend": "\"$npm_execpath\" --filter express-server-sent-event dev",
+    "dev:frontend": "\"$npm_execpath\" --filter frontend dev",
+    "build": "\"$npm_execpath\" -r build",
+    "test": "\"$npm_execpath\" --workspace-concurrency=1 -r --if-present test"
   }
 }

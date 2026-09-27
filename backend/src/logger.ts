@@ -34,6 +34,9 @@ function write(
   message: string,
   fields?: Record<string, unknown>,
 ) {
+  if (process.env.NODE_ENV === "test") {
+    return
+  }
   const time = paint("dim", new Date().toISOString())
   const tag = paint(level, level.padEnd(5))
   const area = paint("dim", scope.padEnd(6))
