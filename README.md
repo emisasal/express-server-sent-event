@@ -25,8 +25,8 @@ To set up the project, follow these steps:
 
 Clone the repository: git clone https://github.com/emisasal/express-server-sent-event
 Navigate to the project directory: `cd express-server-sent-event`
-Install dependencies in /backend and /frontend with `npm install`
-Start the server with `npm run dev` in /backend, and the frontend with `npm run dev` in /frontend
+Install dependencies from the repo root with `pnpm install` (pnpm 12.7.0 via Corepack).
+Start the server with `pnpm dev:backend`, and the frontend with `pnpm dev:frontend`.
 
 ## Technologies
 

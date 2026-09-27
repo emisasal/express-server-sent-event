@@ -7,7 +7,7 @@
   "description": "Express API using SSE (Server-Sent Events)",
   "main": "server.ts",
   "scripts": {
-    "dev": "node --watch --watch-preserve-output -r ts-node/register src/server.ts",
+    "dev": "tsx watch --clear-screen=false src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js"
   },
@@ -15,16 +15,16 @@
   "author": "Emiliano Sasal",
   "license": "MIT",
   "dependencies": {
-    "@types/express": "^5.0.0",
-    "@types/node": "^22.10.7",
-    "cors": "^2.8.5",
-    "express": "^4.21.2",
-    "morgan": "^1.10.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.7.3"
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "morgan": "^1.12.1"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.17",
-    "@types/morgan": "^1.9.9"
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^24.19.0",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3"
   }
 }

@@ -3,39 +3,32 @@ import styles from "./App.module.css"
 import Card from "./Card"
 
 function App() {
-  const [listening, setListening] = useState(false)
   const [status, setStatus] = useState("Disconnected")
   const [events, setEvents] = useState<string[]>([])
 
   useEffect(() => {
-    if (!listening) {
-      const eventSource = new EventSource("http://localhost:8080/events")
+    const eventSource = new EventSource("http://localhost:8080/events")
 
-      eventSource.onopen = () => {
-        console.info("SSE client connected")
-        setListening(true)
-        setStatus("Connected")
-      }
-
-      eventSource.onmessage = (event) => {
-        const parsedData = JSON.parse(event.data).timestamp
-        setEvents((prevEvents) => [parsedData, ...prevEvents])
-      }
-
-      eventSource.onerror = () => {
-        console.warn("SSE client disconnected")
-        setListening(false)
-        setStatus("Error found | Disconnected")
-        eventSource.close()
-      }
-
-      return () => {
-        console.warn("SSE client disconnected")
-        setListening(false)
-        eventSource.close()
-      }
+    eventSource.onopen = () => {
+      console.info("SSE client connected")
+      setStatus("Connected")
     }
-  }, [listening])
+
+    eventSource.onmessage = (event) => {
+      const parsedData = JSON.parse(event.data).timestamp
+      setEvents((prevEvents) => [parsedData, ...prevEvents])
+    }
+
+    eventSource.onerror = () => {
+      console.warn("SSE client disconnected")
+      setStatus("Error found | Disconnected")
+      eventSource.close()
+    }
+
+    return () => {
+      eventSource.close()
+    }
+  }, [])
 
   return (
     <main className={styles.container}>

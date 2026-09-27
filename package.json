@@ -1,0 +1,12 @@
+{
+  "name": "express-server-sent-event-workspace",
+  "private": true,
+  "packageManager": "pnpm@12.7.0",
+  "engines": {
+    "node": ">=20.6.0"
+  },
+  "scripts": {
+    "dev:backend": "pnpm --filter express-server-sent-event dev",
+    "dev:frontend": "pnpm --filter frontend dev"
+  }
+}
