@@ -10,7 +10,7 @@
     "dev": "tsx watch --clear-screen=false src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "NODE_ENV=test tsx --test src/app.test.ts"
+    "test": "NODE_ENV=test tsx --test src/*.test.ts"
   },
   "keywords": [],
   "author": "Emiliano Sasal",

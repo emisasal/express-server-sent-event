@@ -46,6 +46,8 @@ data: {"timestamp":"2026-09-27T10:51:41.847Z"}
 
 Comments look like `: ping <epoch-ms>`. At most 32 concurrent stream clients; extras receive `503`.
 
+SIGINT and SIGTERM close open streams, then the HTTP server. When stdout is not a TTY (CI, Docker, piped logs), the backend writes one JSON object per line instead of colored text.
+
 ## Scripts
 
 | Command | What it runs |

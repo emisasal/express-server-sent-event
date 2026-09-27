@@ -24,7 +24,9 @@ export function createApp() {
   let nextClientId = 1
   let activeClients = 0
   let nextEventId = 1
+  let accepting = true
   const recentPulses: Pulse[] = []
+  const streamClosers = new Set<() => void>()
 
   function remember(pulse: Pulse) {
     recentPulses.push(pulse)
@@ -47,19 +49,29 @@ export function createApp() {
     res.write(`data: ${JSON.stringify({ timestamp: pulse.timestamp })}\n\n`)
   }
 
+  function closeStreams() {
+    accepting = false
+    for (const closer of [...streamClosers]) {
+      closer()
+    }
+  }
+
   app.get("/health", (_req, res) => {
     res.json({ ok: true, activeClients })
   })
 
   app.get("/events", (req, res) => {
-    if (activeClients >= MAX_CLIENTS) {
+    if (!accepting || activeClients >= MAX_CLIENTS) {
       log.warn("sse", "client rejected", {
         remote: req.socket.remoteAddress ?? "unknown",
         active: activeClients,
         max: MAX_CLIENTS,
+        shuttingDown: !accepting,
       })
       res.setHeader("Retry-After", "10")
-      res.status(503).json({ error: "too many SSE clients" })
+      res.status(503).json({
+        error: accepting ? "too many SSE clients" : "shutting down",
+      })
       return
     }
 
@@ -140,6 +152,7 @@ export function createApp() {
         return
       }
       closed = true
+      streamClosers.delete(shutdownStream)
       if (timeoutId !== undefined) {
         clearTimeout(timeoutId)
       }
@@ -160,6 +173,9 @@ export function createApp() {
       }
     }
 
+    const shutdownStream = () => finish("server_shutdown")
+    streamClosers.add(shutdownStream)
+
     req.on("close", () => finish("request_closed"))
     req.on("aborted", () => finish("request_aborted"))
     res.on("error", (error) => {
@@ -171,5 +187,5 @@ export function createApp() {
     })
   })
 
-  return app
+  return { app, closeStreams }
 }

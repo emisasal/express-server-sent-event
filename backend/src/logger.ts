@@ -1,6 +1,7 @@
 type LogLevel = "info" | "warn" | "error"
 
 const useColor = Boolean(process.stdout.isTTY)
+const jsonLogs = !process.stdout.isTTY
 const codes = {
   dim: "\x1b[90m",
   info: "\x1b[36m",
@@ -16,16 +17,28 @@ function paint(color: keyof typeof codes, value: string) {
   return `${codes[color]}${value}${codes.reset}`
 }
 
-function formatFields(fields?: Record<string, unknown>) {
-  if (!fields) {
-    return ""
+export function serializeLog(
+  level: LogLevel,
+  scope: string,
+  message: string,
+  fields?: Record<string, unknown>,
+  options?: { json?: boolean; time?: string },
+) {
+  const time = options?.time ?? new Date().toISOString()
+  const json = options?.json ?? jsonLogs
+  const payload = { time, level, scope, message, ...fields }
+
+  if (json) {
+    return JSON.stringify(payload)
   }
 
-  const parts = Object.entries(fields)
+  const extra = Object.entries(fields ?? {})
     .filter(([, value]) => value !== undefined)
     .map(([key, value]) => `${key}=${String(value)}`)
+    .join(" ")
 
-  return parts.length > 0 ? ` ${paint("dim", parts.join(" "))}` : ""
+  const pretty = `${paint("dim", time)} ${paint(level, level.padEnd(5))} ${paint("dim", scope.padEnd(6))} ${message}`
+  return extra.length > 0 ? `${pretty} ${paint("dim", extra)}` : pretty
 }
 
 function write(
@@ -37,11 +50,8 @@ function write(
   if (process.env.NODE_ENV === "test") {
     return
   }
-  const time = paint("dim", new Date().toISOString())
-  const tag = paint(level, level.padEnd(5))
-  const area = paint("dim", scope.padEnd(6))
   const stream = level === "error" ? process.stderr : process.stdout
-  stream.write(`${time} ${tag} ${area} ${message}${formatFields(fields)}\n`)
+  stream.write(`${serializeLog(level, scope, message, fields)}\n`)
 }
 
 export const log = {

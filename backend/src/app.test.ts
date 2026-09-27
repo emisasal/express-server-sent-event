@@ -5,11 +5,12 @@ import { test } from "node:test"
 import { createApp } from "./app.js"
 
 async function listen() {
-  const app = createApp()
-  const server = app.listen(0, "127.0.0.1")
+  const created = createApp()
+  const server = created.app.listen(0, "127.0.0.1")
   await once(server, "listening")
   const address = server.address() as AddressInfo
   return {
+    ...created,
     server,
     base: `http://127.0.0.1:${address.port}`,
   }
@@ -70,4 +71,38 @@ test("aborting the SSE request releases the client slot", async (t) => {
 
   const health = await fetch(`${base}/health`)
   assert.deepEqual(await health.json(), { ok: true, activeClients: 0 })
+})
+
+test("closeStreams ends open clients and rejects new ones", async (t) => {
+  const { server, base, closeStreams } = await listen()
+  t.after(() => server.close())
+
+  const res = await fetch(`${base}/events`)
+  const reader = res.body?.getReader()
+  assert.ok(reader)
+  const decoder = new TextDecoder()
+  let buffer = ""
+  while (!buffer.includes("data:")) {
+    const { value, done } = await reader.read()
+    if (done) {
+      break
+    }
+    buffer += decoder.decode(value, { stream: true })
+  }
+
+  closeStreams()
+
+  while (true) {
+    const { done } = await reader.read()
+    if (done) {
+      break
+    }
+  }
+
+  const health = await fetch(`${base}/health`)
+  assert.deepEqual(await health.json(), { ok: true, activeClients: 0 })
+
+  const rejected = await fetch(`${base}/events`)
+  assert.equal(rejected.status, 503)
+  assert.deepEqual(await rejected.json(), { error: "shutting down" })
 })
