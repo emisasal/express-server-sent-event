@@ -1,0 +1,15 @@
+{
+  "name": "express-server-sent-event-workspace",
+  "private": true,
+  "packageManager": "pnpm@12.7.0",
+  "engines": {
+    "node": ">=20.6.0"
+  },
+  "scripts": {
+    "dev": "\"$npm_execpath\" --parallel --filter express-server-sent-event --filter frontend dev",
+    "dev:backend": "\"$npm_execpath\" --filter express-server-sent-event dev",
+    "dev:frontend": "\"$npm_execpath\" --filter frontend dev",
+    "build": "\"$npm_execpath\" -r build",
+    "test": "\"$npm_execpath\" --workspace-concurrency=1 -r --if-present test"
+  }
+}

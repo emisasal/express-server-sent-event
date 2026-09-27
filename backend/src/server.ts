@@ -1,44 +1,39 @@
-import express from "express"
-import cors from "cors"
-import morgan from "morgan"
+import { createApp } from "./app.js"
+import { log } from "./logger.js"
 
-const PORT = 8080
-const app = express()
+const PORT = Number.parseInt(process.env.PORT ?? "8080", 10) || 8080
+const SHUTDOWN_MS = 5_000
+const { app, closeStreams } = createApp()
 
-app.use(express.json())
-app.use(express.urlencoded({ extended: false }))
-app.use(cors())
-app.use(morgan("dev"))
-
-// SSE endpoint
-app.get("/events", (req, res) => {
-  console.log("SSE client connected")
-
-  // Set headers for SSE
-  res.setHeader("Content-Type", "text/event-stream")
-  res.setHeader("Cache-Control", "no-cache")
-  res.setHeader("Connection", "keep-alive")
-
-  // Initial event to acknowledge the connection
-  // res.write("data: Connected to SSE | New event every 3 seconds\n\n")
-
-  // Random updates every 1-10 seconds
-  const intervalId = setInterval(() => {
-    const data = JSON.stringify({ timestamp: new Date() })
-    res.write(`data: ${data}\n\n`)
-  }, Math.floor(Math.random() * 10000) + 1)
-
-  // Cleanup when the client disconnects
-  req.on("close", () => {
-    console.warn("SSE client disconnected")
-    clearInterval(intervalId)
-    res.end()
+const server = app.listen(PORT, () => {
+  log.info("server", "listening", {
+    url: `http://localhost:${PORT}`,
+    stream: "GET /events",
+    health: "GET /health",
   })
 })
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`)
-})
+let shuttingDown = false
 
-// Test using:
-// curl http://localhost:8080/events
+function shutdown(signal: string) {
+  if (shuttingDown) {
+    return
+  }
+  shuttingDown = true
+  log.info("server", "shutting down", { signal })
+  closeStreams()
+  server.close((error) => {
+    if (error) {
+      log.error("server", "close failed", { message: error.message })
+      process.exit(1)
+    }
+    process.exit(0)
+  })
+  setTimeout(() => {
+    log.error("server", "forced exit after shutdown timeout")
+    process.exit(1)
+  }, SHUTDOWN_MS).unref()
+}
+
+process.once("SIGINT", () => shutdown("SIGINT"))
+process.once("SIGTERM", () => shutdown("SIGTERM"))
