@@ -1,70 +1,152 @@
 import express from "express"
-import cors from "cors"
 import morgan from "morgan"
 import { log } from "./logger.js"
 
 const PORT = 8080
+const MAX_CLIENTS = 32
+const BUFFER_SIZE = 100
+const HEARTBEAT_MS = 15_000
+const RETRY_MS = 3_000
+const MIN_DELAY_MS = 1_000
+const MAX_DELAY_MS = 10_000
+
+type Pulse = {
+  id: number
+  timestamp: string
+}
+
 const app = express()
 
 let nextClientId = 1
 let activeClients = 0
+let nextEventId = 1
+const recentPulses: Pulse[] = []
 
-app.use(express.json())
-app.use(express.urlencoded({ extended: false }))
-app.use(cors())
 app.use(
   morgan("dev", {
     skip: (req) => req.path === "/events",
   }),
 )
 
+function randomDelayMs() {
+  return (
+    Math.floor(Math.random() * (MAX_DELAY_MS - MIN_DELAY_MS + 1)) + MIN_DELAY_MS
+  )
+}
+
+function remember(pulse: Pulse) {
+  recentPulses.push(pulse)
+  if (recentPulses.length > BUFFER_SIZE) {
+    recentPulses.shift()
+  }
+}
+
+function createPulse(): Pulse {
+  const pulse = {
+    id: nextEventId++,
+    timestamp: new Date().toISOString(),
+  }
+  remember(pulse)
+  return pulse
+}
+
+function writePulse(res: express.Response, pulse: Pulse) {
+  res.write(`id: ${pulse.id}\n`)
+  res.write(`data: ${JSON.stringify({ timestamp: pulse.timestamp })}\n\n`)
+}
+
 app.get("/events", (req, res) => {
+  if (activeClients >= MAX_CLIENTS) {
+    log.warn("sse", "client rejected", {
+      remote: req.socket.remoteAddress ?? "unknown",
+      active: activeClients,
+      max: MAX_CLIENTS,
+    })
+    res.setHeader("Retry-After", "10")
+    res.status(503).json({ error: "too many SSE clients" })
+    return
+  }
+
   const clientId = nextClientId++
   const connectedAt = Date.now()
-  let pulses = 0
   const remote = req.socket.remoteAddress ?? "unknown"
-  const intervalMs = Math.floor(Math.random() * 10_000) + 1
+  const lastEventId = Number.parseInt(String(req.headers["last-event-id"] ?? ""), 10)
+  const isResume = Number.isFinite(lastEventId)
+  const replay = isResume
+    ? recentPulses.filter((pulse) => pulse.id > lastEventId)
+    : []
 
   activeClients += 1
+  let pulses = 0
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+  let heartbeatId: ReturnType<typeof setInterval> | undefined
+  let closed = false
+
   log.info("sse", "client connected", {
     client: clientId,
     remote,
-    intervalMs,
+    lastEventId: isResume ? lastEventId : "none",
+    replay: replay.length,
     active: activeClients,
   })
 
+  res.status(200)
   res.setHeader("Content-Type", "text/event-stream")
   res.setHeader("Cache-Control", "no-cache")
-  res.setHeader("Connection", "keep-alive")
+  res.setHeader("X-Accel-Buffering", "no")
   res.flushHeaders()
+  res.write(`retry: ${RETRY_MS}\n\n`)
 
-  const sendPulse = () => {
+  const emit = (pulse: Pulse) => {
     if (res.writableEnded || res.destroyed) {
       return
     }
-
     pulses += 1
-    const timestamp = new Date().toISOString()
-    const payload = JSON.stringify({ timestamp })
-
-    res.write(`data: ${payload}\n\n`)
+    writePulse(res, pulse)
     log.info("sse", "pulse sent", {
       client: clientId,
-      pulse: pulses,
-      timestamp,
+      id: pulse.id,
+      timestamp: pulse.timestamp,
     })
   }
 
-  const intervalId = setInterval(sendPulse, intervalMs)
+  for (const pulse of replay) {
+    emit(pulse)
+  }
 
-  let closed = false
+  if (!isResume) {
+    emit(createPulse())
+  }
+
+  const schedule = () => {
+    timeoutId = setTimeout(() => {
+      if (closed) {
+        return
+      }
+      emit(createPulse())
+      schedule()
+    }, randomDelayMs())
+  }
+
+  schedule()
+  heartbeatId = setInterval(() => {
+    if (res.writableEnded || res.destroyed) {
+      return
+    }
+    res.write(`: ping ${Date.now()}\n\n`)
+  }, HEARTBEAT_MS)
 
   const finish = (reason: string) => {
     if (closed) {
       return
     }
     closed = true
-    clearInterval(intervalId)
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId)
+    }
+    if (heartbeatId !== undefined) {
+      clearInterval(heartbeatId)
+    }
     activeClients = Math.max(0, activeClients - 1)
     log.info("sse", "client disconnected", {
       client: clientId,

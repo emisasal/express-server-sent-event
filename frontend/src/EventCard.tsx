@@ -1,8 +1,8 @@
 import { memo } from "react"
 
 type EventCardProps = {
+  id: string
   timestamp: string
-  index: number
   isLatest: boolean
 }
 
@@ -26,10 +26,12 @@ function formatDate(timestamp: string) {
 }
 
 const EventCard = memo(function EventCard({
+  id,
   timestamp,
-  index,
   isLatest,
 }: EventCardProps) {
+  const pulseLabel = id.padStart(3, "0")
+
   return (
     <article
       className={`group relative overflow-hidden rounded-2xl border px-4 py-4 transition duration-300 motion-reduce:animate-none motion-reduce:transition-none ${
@@ -46,7 +48,7 @@ const EventCard = memo(function EventCard({
       <div className="flex items-start justify-between gap-4 pl-3">
         <div>
           <p className="font-mono text-[11px] tracking-[0.22em] text-white/45 uppercase">
-            Pulse {String(index + 1).padStart(3, "0")}
+            Pulse {pulseLabel}
           </p>
           <p className="mt-1 font-mono text-2xl font-medium tracking-tight text-fog tabular-nums">
             {formatClock(timestamp)}

@@ -4,4 +4,13 @@ import tailwindcss from "@tailwindcss/vite"
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  server: {
+    proxy: {
+      "/events": {
+        target: "http://127.0.0.1:8080",
+        changeOrigin: true,
+        timeout: 0,
+      },
+    },
+  },
 })

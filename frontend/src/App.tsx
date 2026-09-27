@@ -1,11 +1,14 @@
-import { startTransition, useCallback, useEffect, useState } from "react"
+import { startTransition, useCallback, useEffect, useRef, useState } from "react"
 import EventCard from "./EventCard"
 
-type ConnectionStatus = "connecting" | "connected" | "error"
+type ConnectionStatus = "connecting" | "connected" | "reconnecting" | "error"
 type StreamEvent = {
   id: string
   timestamp: string
 }
+
+const VISIBLE_EVENTS = 48
+const STUCK_RECONNECT_MS = 15_000
 
 const STATUS_COPY: Record<
   ConnectionStatus,
@@ -18,12 +21,17 @@ const STATUS_COPY: Record<
   },
   connected: {
     label: "Live",
-    detail: "Pulses arrive every 1–10 seconds.",
+    detail: "Pulses arrive every 1–10 seconds. Dropped connections resume from the last event id.",
     tone: "bg-signal",
+  },
+  reconnecting: {
+    label: "Reconnecting",
+    detail: "The browser is retrying the stream automatically.",
+    tone: "bg-amber-300",
   },
   error: {
     label: "Signal lost",
-    detail: "The stream closed. Reconnect to keep listening.",
+    detail: "Automatic reconnect stalled. Retry the stream to resume from the last event id.",
     tone: "bg-ember",
   },
 }
@@ -31,33 +39,58 @@ const STATUS_COPY: Record<
 function App() {
   const [status, setStatus] = useState<ConnectionStatus>("connecting")
   const [events, setEvents] = useState<StreamEvent[]>([])
+  const [received, setReceived] = useState(0)
   const [session, setSession] = useState(0)
+  const seenIds = useRef(new Set<string>())
 
   const reconnect = useCallback(() => {
-    setEvents([])
     setStatus("connecting")
     setSession((value) => value + 1)
   }, [])
 
   useEffect(() => {
-    const eventSource = new EventSource("http://localhost:8080/events")
+    const eventSource = new EventSource("/events")
 
     eventSource.onopen = () => {
       setStatus("connected")
     }
 
     eventSource.onmessage = (event) => {
-      const timestamp = JSON.parse(event.data).timestamp as string
+      let timestamp: string
+      try {
+        const parsed: unknown = JSON.parse(event.data)
+        if (
+          typeof parsed !== "object" ||
+          parsed === null ||
+          typeof (parsed as { timestamp?: unknown }).timestamp !== "string"
+        ) {
+          return
+        }
+        timestamp = (parsed as { timestamp: string }).timestamp
+      } catch {
+        return
+      }
+
+      const id = event.lastEventId || crypto.randomUUID()
+      if (seenIds.current.has(id)) {
+        return
+      }
+      seenIds.current.add(id)
+
       startTransition(() => {
+        setReceived((count) => count + 1)
         setEvents((previous) =>
-          [{ id: crypto.randomUUID(), timestamp }, ...previous].slice(0, 48),
+          [{ id, timestamp }, ...previous].slice(0, VISIBLE_EVENTS),
         )
       })
     }
 
     eventSource.onerror = () => {
-      setStatus("error")
-      eventSource.close()
+      if (eventSource.readyState === EventSource.CLOSED) {
+        setStatus("error")
+        return
+      }
+      setStatus("reconnecting")
     }
 
     return () => {
@@ -65,7 +98,22 @@ function App() {
     }
   }, [session])
 
+  useEffect(() => {
+    if (status !== "reconnecting") {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setStatus("error")
+    }, STUCK_RECONNECT_MS)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [status])
+
   const copy = STATUS_COPY[status]
+  const showReconnect = status === "error"
 
   return (
     <div className="relative isolate min-h-dvh overflow-hidden bg-ink text-fog">
@@ -120,7 +168,7 @@ function App() {
               Received
             </p>
             <p className="mt-2 font-display text-3xl text-white tabular-nums">
-              {events.length}
+              {received}
             </p>
           </div>
           <div className="rounded-2xl border border-white/8 bg-white/4 px-4 py-4">
@@ -139,7 +187,7 @@ function App() {
 
         <p className="mt-6 text-sm text-white/50">{copy.detail}</p>
 
-        {status === "error" ? (
+        {showReconnect ? (
           <button
             type="button"
             onClick={reconnect}
@@ -168,8 +216,8 @@ function App() {
             events.map((event, index) => (
               <EventCard
                 key={event.id}
+                id={event.id}
                 timestamp={event.timestamp}
-                index={events.length - index - 1}
                 isLatest={index === 0}
               />
             ))
